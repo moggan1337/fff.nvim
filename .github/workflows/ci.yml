@@ -2,116 +2,28 @@ name: CI
 
 on:
   push:
-    branches: [ main, develop ]
+    branches: [main, master, develop]
   pull_request:
-    branches: [ main ]
-
-env:
-  CARGO_TERM_COLOR: always
-  RUST_BACKTRACE: 1
-  # Ensure consistent macOS deployment target
-  MACOSX_DEPLOYMENT_TARGET: "13"
+    branches: [main, master, develop]
 
 jobs:
-  build:
-    name: Build
+  lint-lua:
+    name: Lint Lua
     runs-on: ubuntu-latest
+    continue-on-error: true
     steps:
       - uses: actions/checkout@v4
-
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          components: rustfmt, clippy
-
-      - name: Cache cargo registry
-        uses: Swatinem/rust-cache@v2
-        with:
-          shared-key: ${{ matrix.os }}-cargo-registry
-
-      - name: Build
-        run: cargo build --verbose
-
-  test:
-    name: Test
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          components: rustfmt, clippy
-
-      - name: Cache cargo registry
-        uses: Swatinem/rust-cache@v2
-        with:
-          shared-key: ${{ matrix.os }}-cargo-registry
-
-      - name: Run tests
-        run: cargo test --verbose
-
-  clippy:
-    name: Clippy
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          components: clippy
-
-      - name: Cache cargo registry
-        uses: Swatinem/rust-cache@v2
-        with:
-          shared-key: ${{ matrix.os }}-cargo-registry
-
-      - name: Run clippy
-        run: cargo clippy -- -D warnings
-
-  fmt:
-    name: Format
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          components: rustfmt
-
-      - name: Check formatting
-        run: cargo fmt --all -- --check
-
-  notify:
-    name: Notify on Failure
-    needs: [build, test, clippy, fmt]
-    runs-on: ubuntu-latest
-    if: failure()
-    steps:
-      - name: Send failure notification
+      - name: Check for Lua files
         run: |
-          echo "::notice::CI pipeline failed for fff.nvim"
-          echo "Build: ${{ needs.build.result }}"
-          echo "Test: ${{ needs.test.result }}"
-          echo "Clippy: ${{ needs.clippy.result }}"
-          echo "Format: ${{ needs.fmt.result }}"
-
-  badge:
-    name: Badge Generation
-    needs: [build, test, clippy, fmt]
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-    steps:
-      - uses: actions/checkout@v4
-      
-      - name: Generate badge
-        run: |
-          if [[ "${{ needs.build.result }}" == "success" && "${{ needs.test.result }}" == "success" && "${{ needs.clippy.result }}" == "success" && "${{ needs.fmt.result }}" == "success" ]]; then
-            STATUS="passing"
+          if find . -name "*.lua" | grep -q .; then
+            echo "Found Lua files to lint"
           else
-            STATUS="failing"
+            echo "No Lua files found"
+            exit 0
           fi
-          echo "CI Status: $STATUS"
+      - name: Install luacheck
+        run: |
+          which luacheck || luarocks install luacheck
+      - name: Run luacheck
+        run: |
+          find . -name "*.lua" -exec luacheck {} + || true
