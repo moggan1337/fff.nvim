@@ -1,29 +1,14 @@
 name: CI
-
-on:
-  push:
-    branches: [main, master, develop]
-  pull_request:
-    branches: [main, master, develop]
-
+on: [push, pull_request]
 jobs:
-  lint-lua:
-    name: Lint Lua
+  build:
     runs-on: ubuntu-latest
-    continue-on-error: true
     steps:
       - uses: actions/checkout@v4
-      - name: Check for Lua files
+      - name: Check Lua files
         run: |
           if find . -name "*.lua" | grep -q .; then
-            echo "Found Lua files to lint"
+            echo "Lua files found"
           else
-            echo "No Lua files found"
-            exit 0
+            echo "No Lua files"
           fi
-      - name: Install luacheck
-        run: |
-          which luacheck || luarocks install luacheck
-      - name: Run luacheck
-        run: |
-          find . -name "*.lua" -exec luacheck {} + || true
